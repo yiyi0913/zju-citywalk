@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>浙大城郊漫游共享局｜杭州免费CityWalk平台</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;font-family:PingFang SC,微软雅黑,sans-serif;}
+        body{background:#f6f8fb;color:#222;padding-bottom:120px;}
+        .container{width:93%;margin:0 auto;max-width:1200px;}
+        .header{text-align:center;padding:30px 0;border-bottom:1px solid #e5e9f0;}
+        .header h1{color:#274b80;font-size:26px;}
+        .header p{color:#64748b;font-size:14px;margin-top:6px;}
+        /* 标签筛选 */
+        .tag-group{display:flex;gap:9px;flex-wrap:wrap;margin:25px 0;}
+        .tag{padding:7px 15px;border-radius:22px;border:none;background:#3662a3;color:#fff;cursor:pointer;font-size:14px;transition:0.2s;}
+        .tag.active{background:#1a3660;}
+        /* AI模块 */
+        .ai-box{background:#fff;border-radius:12px;padding:22px;margin-bottom:25px;box-shadow:0 2px 10px #00000012;}
+        .ai-box textarea{width:100%;border:1px solid #dde2e9;border-radius:8px;padding:12px;margin:10px 0;height:85px;resize:none;}
+        .ai-result{background:#f3f6fa;padding:16px;border-radius:8px;margin-top:10;min-height:80px;white-space:pre-line;line-height:1.7;}
+        .ai-box button{padding:8px 20px;background:#274b80;color:#fff;border:0;border-radius:6px;cursor:pointer;}
+        /* 路线卡片 专属景点图 */
+        .route-card{background:#fff;border-radius:10px;padding:16px;margin:12px 0;box-shadow:0 2px 6px #0000000c;}
+        .route-card img{width:100%;height:180px;border-radius:8px;object-fit:cover;margin-bottom:10px;}
+        .route-card span{font-size:12px;color:#fff;padding:3px 8px;border-radius:10px;background:#5881bd;margin-right:6px;}
+        .hide{display:none;}
+        /* 投稿悬浮按钮 */
+        .submit-btn{position:fixed;right:28px;bottom:28px;padding:13px 20px;background:#c54444;color:#fff;border-radius:28px;border:none;cursor:pointer;box-shadow:0 3px 12px #00000018;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>浙大城郊漫游共享局</h1>
+            <p>紫金港｜玉泉｜西溪｜华家池 四大校区出发｜零门票小众杭州漫游</p>
+        </div>
+
+        <div class="tag-group">
+            <div class="tag active" data-type="all">全部路线</div>
+            <div class="tag" data-type="half">半日漫游</div>
+            <div class="tag" data-type="allday">一日漫游</div>
+            <div class="tag" data-type="day">白天观景</div>
+            <div class="tag" data-type="night">夜景漫步</div>
+            <div class="tag" data-type="sun">晴天室外</div>
+            <div class="tag" data-type="rain">雨天室内</div>
+            <div class="tag" data-type="street">历史古街</div>
+            <div class="tag" data-type="scenery">自然风景</div>
+        </div>
+
+        <!-- AI离线匹配模块（图文一一对应） -->
+        <div class="ai-box">
+            <h3>🤖 AI定制漫游路线｜零费城市漫游官</h3>
+            <p style="font-size:13px;color:#666;margin:6px 0;">输入示例：紫金港半日雨天历史街区 / 玉泉一日晴天山野徒步</p>
+            <textarea id="userInput" placeholder="输入校区+时长+天气+游玩类型"></textarea>
+            <button onclick="generateRoute()">一键生成路线</button>
+            <div class="ai-result" id="aiRes">AI生成路线会展示在此处</div>
+        </div>
+
+        <!-- 路线渲染容器 -->
+        <div id="routeBox"></div>
+    </div>
+
+    <!-- 投稿悬浮按钮 -->
+    <button class="submit-btn" onclick="alert('投稿表单链接可自行替换弹窗文字')">➕上传私藏路线</button>
+
+<script>
+// 路线库：每条路线绑定【专属对应景点图片】，不再随机图
+const routeLib = [
+    {
+        title:"北山街西湖慢行线",
+        campus:"玉泉出发",
+        label:"half day sun street",
+        desc:"全程无门票，沿西湖北山街散步，民国老别墅、断桥、保俶塔一体串联，骑行20分钟从玉泉直达，人少安静，适合午后拍照。",
+        img:"https://images.wallpaperflare.com/original/2938/3840/west-lake-hangzhou-pagoda-lake-water.jpg"
+    },
+    {
+        title:"拱宸桥运河夜景线",
+        campus:"紫金港出发",
+        label:"half night sun street",
+        desc:"傍晚18:00-21:00最佳，古运河灯火长廊，各类平价小吃，公交直达紫金港，全程免费，适合傍晚散步。",
+        img:"https://images.wallpaperflare.com/original/3100/1744/arch-bridge-night-canal-lights-hangzhou.jpg"
+    },
+    {
+        title:"浙江美术馆+西湖博物馆联游",
+        campus:"全校通用",
+        label:"half rain",
+        desc:"全室内场馆，雨天首选，免费预约，画展、文史展厅丰富，避开日晒雨淋，课余散心绝佳选择。",
+        img:"https://images.wallpaperflare.com/original/2400/1600/art-gallery-building-hangzhou.jpg"
+    },
+    {
+        title:"小河直街-大兜路-香积寺环线",
+        campus:"全校通用",
+        label:"allday day sun street",
+        desc:"连片老式江南古街，全程零门票，咖啡店、特色小店密集，适合全天结伴漫游，拍照氛围感极强。",
+        img:"https://images.wallpaperflare.com/original/2700/1800/jiangnan-old-street-water-town.jpg"
+    },
+    {
+        title:"老和山—北高峰徒步线",
+        campus:"玉泉出发",
+        label:"allday day sun scenery",
+        desc:"浙大学生专属免费山野步道，登顶俯瞰完整西湖城区，难度低，晴天徒步、野餐首选。",
+        img:"https://images.wallpaperflare.com/original/3500/2000/hangzhou-mountain-view-westlake-panorama.jpg"
+    },
+    {
+        title:"滨江樱花跑道半日线",
+        campus:"华家池出发",
+        label:"half day sun scenery",
+        desc:"钱塘江边超长步道，春季樱花成片，无门票，骑行散步皆宜，江景开阔治愈。",
+        img:"https://images.wallpaperflare.com/original/3200/1800/qiantang-river-boulevard.jpg"
+    },
+    {
+        title:"西溪外围湿地免费步道",
+        campus:"紫金港出发",
+        label:"allday sun scenery",
+        desc:"不用购买西溪收费园区门票，外围沿河原生绿道，绿植茂密，安静适合散心徒步。",
+        img:"https://images.wallpaperflare.com/original/2600/1700/wetland-green-path-hangzhou.jpg"
+    }
+];
+
+// 标签筛选功能
+const tags = document.querySelectorAll('.tag');
+const routeBox = document.getElementById('routeBox');
+tags.forEach(tag=>{
+    tag.onclick = function(){
+        tags.forEach(t=>t.classList.remove('active'));
+        this.classList.add('active');
+        const type = this.dataset.type;
+        const allCards = document.querySelectorAll('.route-card');
+        allCards.forEach(card=>{
+            if(type === 'all'){
+                card.classList.remove('hide');
+            }else{
+                card.dataset.tag.includes(type) ? card.classList.remove('hide') : card.classList.add('hide');
+            }
+        })
+    }
+})
+
+// AI生成函数：匹配路线+自动加载对应专属图片
+function generateRoute(){
+    const inputText = document.getElementById('userInput').value.trim();
+    const resBox = document.getElementById('aiRes');
+    const box = document.getElementById('routeBox');
+    if(!inputText){
+        resBox.innerText = "请输入出行需求，示例：玉泉一日晴天山野徒步";
+        return;
+    }
+    resBox.innerText = "正在匹配专属漫游路线...\n";
+    let matchList = [];
+    // 关键词匹配路线
+    routeLib.forEach(item=>{
+        let hit = false;
+        if(inputText.includes("紫金港") && item.campus.includes("紫金港")) hit=true;
+        if(inputText.includes("玉泉") && item.campus.includes("玉泉")) hit=true;
+        if(inputText.includes("华家池") && item.campus.includes("华家池")) hit=true;
+        if(inputText.includes("半日") && item.label.includes("half")) hit=true;
+        if(inputText.includes("一日") && item.label.includes("allday")) hit=true;
+        if(inputText.includes("夜景") && item.label.includes("night")) hit=true;
+        if(inputText.includes("雨天") && item.label.includes("rain")) hit=true;
+        if(inputText.includes("古街") && item.label.includes("street")) hit=true;
+        if(inputText.includes("山野") && item.label.includes("scenery")) hit=true;
+        if(hit) matchList.push(item);
+    })
+    // 无匹配兜底
+    if(matchList.length === 0){
+        resBox.innerText += "未找到完全匹配路线，为你推荐两条通用经典路线";
+        matchList = [routeLib[0],routeLib[2]];
+    }else{
+        resBox.innerText += `匹配到${matchList.length}条适配你的零门票CityWalk路线`;
+    }
+    // 循环生成卡片，每条路线使用自己专属图片
+    matchList.forEach(item=>{
+        const card = document.createElement('div');
+        card.className = "route-card";
+        card.dataset.tag = item.label;
+        card.innerHTML = `
+            <img src="${item.img}" alt="${item.title}">
+            <span>${item.campus}</span>
+            <h4>${item.title}</h4>
+            <p style="font-size:14px;color:#555;margin-top:8px;white-space:pre-line;">${item.desc}</p>
+        `;
+        box.prepend(card);
+    })
+}
+</script>
+</body>
+</html>
